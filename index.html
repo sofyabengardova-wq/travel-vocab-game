@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Travel Vocabulary Game</title>
+    <style>
+        :root {
+            --primary: #ef6c77;
+            --bg: #f9f9f9;
+            --text: #333;
+            --correct: #4caf50;
+            --wrong: #f44336;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+            max-width: 700px;
+            width: 100%;
+        }
+        h1 { text-align: center; color: var(--primary); margin-top: 0; }
+        h2 { text-align: center; font-size: 1.2rem; color: #666; margin-bottom: 25px;}
+        
+        .match-container { display: flex; justify-content: space-between; gap: 20px; }
+        .column { width: 45%; display: flex; flex-direction: column; gap: 10px; }
+        
+        .item {
+            padding: 12px 15px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+            background: #fff;
+            user-select: none;
+        }
+        .item:hover { border-color: var(--primary); }
+        .item.selected { background-color: #ffe0e3; border-color: var(--primary); }
+        .item.matched { background-color: var(--correct); color: white; border-color: var(--correct); cursor: default; pointer-events: none; }
+        
+        .sentence { margin-bottom: 15px; font-size: 1.1rem; line-height: 1.5; }
+        .blank { 
+            border: none; border-bottom: 2px solid var(--primary); 
+            font-size: 1.1rem; padding: 2px 5px; outline: none; 
+            background: transparent; width: 150px; text-align: center;
+            font-family: inherit;
+        }
+        .blank.correct { border-color: var(--correct); color: var(--correct); font-weight: bold; }
+        .blank.wrong { border-color: var(--wrong); color: var(--wrong); }
+        
+        button {
+            display: block; width: 100%; padding: 15px;
+            background-color: var(--primary); color: white;
+            border: none; border-radius: 8px; font-size: 1.1rem;
+            cursor: pointer; margin-top: 20px; transition: background 0.2s;
+        }
+        button:hover { background-color: #d95a65; }
+        button:disabled { background-color: #ccc; cursor: not-allowed; }
+        
+        .hidden { display: none !important; }
+        .result-text { text-align: center; font-size: 1.5rem; font-weight: bold; margin-bottom: 20px;}
+        
+        @media (max-width: 600px) {
+            .match-container { flex-direction: column; }
+            .column { width: 100%; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>Travel Vocabulary</h1>
+    
+    <!-- ЭКРАН 1: MATCHING -->
+    <div id="screen-match">
+        <h2>Match the words with their definitions</h2>
+        <div class="match-container">
+            <div class="column" id="words-col"></div>
+            <div class="column" id="defs-col"></div>
+        </div>
+        <button id="btn-to-context" disabled>Next: Fill in the blanks</button>
+    </div>
+
+    <!-- ЭКРАН 2: CONTEXT -->
+    <div id="screen-context" class="hidden">
+        <h2>Fill in the blanks with the correct word or phrase</h2>
+        <div id="sentences-container"></div>
+        <button id="btn-check">Check Answers</button>
+    </div>
+
+    <!-- ЭКРАН 3: RESULT -->
+    <div id="screen-result" class="hidden">
+        <h2>Game Over!</h2>
+        <div class="result-text" id="score-text"></div>
+        <button onclick="location.reload()">Play Again</button>
+    </div>
+</div>
+
+<script>
+    // Данные из вашего списка
+    const vocabulary = [
+        { word: "book (v)", def: "to reserve something in advance (e.g., a ticket)" },
+        { word: "flight", def: "a journey by plane" },
+        { word: "luggage", def: "bags and suitcases you take on a trip" },
+        { word: "package holiday", def: "a holiday arranged by a company for a fixed price" },
+        { word: "passenger", def: "a person travelling in a vehicle" },
+        { word: "passport", def: "an official document needed for international travel" },
+        { word: "(go) sightseeing", def: "to visit interesting places as a tourist" },
+        { word: "souvenir", def: "something you buy to remember a place" },
+        { word: "ticket", def: "a piece of paper that shows you have paid for a trip" },
+        { word: "tour guide", def: "a person who shows tourists around" },
+        { word: "travel agency", def: "a shop/company that arranges trips for people" },
+        { word: "(go on) a trip/an excursion", def: "a short journey to a place and back" }
+    ];
+
+    // Данные для пропусков (предложения)
+    const sentences = [
+        { text: "Don't forget to ___ your hotel room before you go.", answer: "book (v)" },
+        { text: "Our ___ to Paris was delayed by two hours.", answer: "flight" },
+        { text: "You can only take one piece of hand ___ on the plane.", answer: "luggage" },
+        { text: "They bought a ___ because it was cheaper than booking everything separately.", answer: "package holiday" },
+        { text: "The ___ was asked to fasten his seatbelt.", answer: "passenger" },
+        { text: "Make sure your ___ is valid for at least six months.", answer: "passport" },
+        { text: "We spent the whole day ___ around the old city.", answer: "(go) sightseeing" },
+        { text: "I bought a small Eiffel Tower ___ for my sister.", answer: "souvenir" },
+        { text: "I lost my train ___, so I had to buy a new one.", answer: "ticket" },
+        { text: "The ___ told us interesting stories about the castle.", answer: "tour guide" },
+        { text: "We booked our flights through a local ___.", answer: "travel agency" },
+        { text: "Next weekend we are going on a ___ to the mountains.", answer: "(go on) a trip/an excursion" }
+    ];
+
+    let selectedWord = null;
+    let matchedPairs = 0;
+    let totalScore = 0;
+
+    // --- ЛОГИКА MATCHING ---
+    const wordsCol = document.getElementById('words-col');
+    const defsCol = document.getElementById('defs-col');
+    const btnToContext = document.getElementById('btn-to-context');
+
+    // Перемешиваем слова
+    const shuffledWords = [...vocabulary].sort(() => Math.random() - 0.5);
+    const shuffledDefs = [...vocabulary].sort(() => Math.random() - 0.5);
+
+    shuffledWords.forEach(item => {
+        const div = document.createElement('div');
+        div.className = 'item';
+        div.textContent = item.word;
+        div.dataset.word = item.word;
+        div.addEventListener('click', () => selectWord(div));
+        wordsCol.appendChild(div);
+    });
+
+    shuffledDefs.forEach(item => {
+        const div = document.createElement('div');
+        div.className = 'item';
+        div.textContent = item.def;
+        div.dataset.word = item.word; // Связываем определение со словом
+        div.addEventListener('click', () => checkMatch(div));
+        defsCol.appendChild(div);
+    });
+
+    function selectWord(el) {
+        if (el.classList.contains('matched')) return;
+        if (selectedWord) selectedWord.classList.remove('selected');
+        selectedWord = el;
+        el.classList.add('selected');
+    }
+
+    function checkMatch(defEl) {
+        if (!selectedWord || defEl.classList.contains('matched')) return;
+        
+        if (selectedWord.dataset.word === defEl.dataset.word) {
+            // Правильно
+            selectedWord.classList.remove('selected');
+            selectedWord.classList.add('matched');
+            defEl.classList.add('matched');
+            selectedWord = null;
+            matchedPairs++;
+            totalScore++;
+            
+            if (matchedPairs === vocabulary.length) {
+                btnToContext.disabled = false;
+                btnToContext.textContent = "Start Part 2: Fill in the blanks →";
+            }
+        } else {
+            // Неправильно
+            defEl.style.borderColor = 'var(--wrong)';
+            setTimeout(() => { defEl.style.borderColor = '#ddd'; }, 500);
+            selectedWord.classList.remove('selected');
+            selectedWord = null;
+        }
+    }
+
+    // --- ЛОГИКА CONTEXT (FILL IN THE BLANKS) ---
+    btnToContext.addEventListener('click', () => {
+        document.getElementById('screen-match').classList.add('hidden');
+        document.getElementById('screen-context').classList.remove('hidden');
+        renderSentences();
+    });
+
+    const sentencesContainer = document.getElementById('sentences-container');
+    let correctAnswersCount = 0;
+
+    function renderSentences() {
+        sentences.forEach((s, index) => {
+            const div = document.createElement('div');
+            div.className = 'sentence';
+            // Разбиваем предложение по ___
+            const parts = s.text.split('___');
+            div.innerHTML = parts[0] + `<input type="text" class="blank" data-answer="${s.answer}" id="input-${index}">` + parts[1];
+            sentencesContainer.appendChild(div);
+        });
+    }
+
+    // --- ПРОВЕРКА ОТВЕТОВ ---
+    document.getElementById('btn-check').addEventListener('click', () => {
+        const inputs = document.querySelectorAll('.blank');
+        correctAnswersCount = 0;
+
+        inputs.forEach(input => {
+            const userAnswer = input.value.trim().toLowerCase();
+            const correctAnswer = input.dataset.answer.toLowerCase();
+            
+            // Допускаем небольшие опечатки (например, если написали без "(v)" или скобок)
+            const cleanUser = userAnswer.replace(/[()]/g, '').trim();
+            const cleanCorrect = correctAnswer.replace(/[()]/g, '').trim();
+
+            // Проверяем, совпадает ли ответ или является ли он частью фразы
+            if (userAnswer === correctAnswer || userAnswer === cleanCorrect || correctAnswer.includes(userAnswer) && userAnswer.length > 3) {
+                input.classList.add('correct');
+                input.disabled = true;
+                correctAnswersCount++;
+            } else {
+                input.classList.add('wrong');
+                input.disabled = true;
+            }
+        });
+
+        // Итог
+        const totalQuestions = sentences.length;
+        totalScore += correctAnswersCount;
+        const maxScore = vocabulary.length + totalQuestions;
+
+        document.getElementById('screen-context').classList.add('hidden');
+        document.getElementById('screen-result').classList.remove('hidden');
+        
+        let message = "";
+        if (totalScore === maxScore) message = "🏆 Perfect! You are a travel expert!";
+        else if (totalScore > maxScore * 0.7) message = "🌟 Great job! Almost perfect.";
+        else message = "📚 Good try! Review the words and try again.";
+
+        document.getElementById('score-text').innerHTML = `Your score: ${totalScore} / ${maxScore} <br><br> ${message}`;
+    });
+
+</script>
+</body>
+</html>
